@@ -1,20 +1,15 @@
-# Mitsuha AI Project
-# Development started on July 7th, 2019
-
 import discord
 import asyncio
 import random
 import datetime
 import os
 import time
-from nltk.tokenize import sent_tokenize, word_tokenize, WordPunctTokenizer
-from nltk.stem import WordNetLemmatizer
-import twitter
+import twitter as t
 
 with open("tokens.txt", "r") as tokens_file:
 	for line in tokens_file:
 		if line.startswith("discord_token: "):
-			discord_token = line.split(": ")[1]
+			discord_token = line.split(": ")[1].replace("\n","")
 
 client = discord.Client()
 
@@ -31,20 +26,8 @@ def pf(preftype):
 	else:
 		return "["+currenttime+"/"+preftype+"] "
 
-def coinflip():
-	if random.randrange(0,2) == 0:
-		return "Heads"
-	else:
-		return "Tails"
-
-def status(message):
-	if enable_twitter == True:
-		print(pf("Twitter")+twitter.tweet(message))
-
 def load():
 	print(pf("i")+"Loading data...")
-	words.clear()
-	phrases.clear()
 	users.clear()
 	admins.clear()
 
@@ -62,83 +45,10 @@ def load():
 			auth.append(line.replace("\n", ""))
 			i += 1
 	print(pf("i")+"> Loaded "+str(i)+" authorized users.")
-	i = 0
-
-	for folder in os.listdir("data/words"):
-		i_c += 1
-		words[folder] = {}
-
-		with open("data/words/"+folder+"/nouns.txt", "r") as nounlist:
-			words[folder]["n"] = []
-			for line in nounlist:
-				words[folder]["n"].append(line.replace("\n", ""))
-				i += 1
-
-		with open("data/words/"+folder+"/verbs.txt", "r") as verblist:
-			words[folder]["v"] = []
-			for line in verblist:
-				words[folder]["v"].append(line.replace("\n", ""))
-				i += 1
-
-		with open("data/words/"+folder+"/keywords.txt", "r") as keywordlist:
-			words[folder]["k"] = []
-			for line in keywordlist:
-				words[folder]["k"].append(line.replace("\n", ""))
-				i += 1
-
-
-	print(pf("i")+"> Loaded "+str(i)+" words from "+str(i_c)+" categories.")
-	i_c = 0
-	i = 0
-
-	for file in os.listdir("data/phrases"):
-		i_c += 1
-		phrases[file] = {}
-		with open("data/phrases/"+file+".txt", "r") as phraselist:
-			words[file] = []
-			for line in phraselist:
-				words[file].append(line.replace("\n", ""))
-				i += 1
-	print(pf("i")+"> Loaded "+str(i)+" phrases from "+str(i_c)+" categories.")
-	i_c = 0
-	i = 0
-
-	for file in os.listdir("data/users"):
-		i_c += 1
-		users[file.replace(".txt", "")] = {}
-		with open("data/users/"+file, "r") as userfile:
-			users[file.replace(".txt", "")]["username"] = userfile.readline().replace("\n", "")
-			i += 1
-	print(pf("i")+"> Loaded "+str(i)+" users.")
 	i_c = 0
 	i = 0
 
 	print(pf("i")+"Data loaded.")
-
-def save_word(word, wordtype, category):
-	with open("data/words/"+category+"/"+wordtype+".txt", "a") as wordfile:
-		wordfile.write(word+"\n")
-
-def save_user(userid, username):
-	with open("data/users/"+userid+".txt", "w") as userfile:
-		userfile.write("username: "+users[userid]["username"])
-
-def check_category(category):
-	if not category in words:
-		words[category] = {"n":[],"v":[],"k":[]}
-		os.mkdir("data/words/"+category)
-		mkfile = open("data/words/"+category+"/nouns.txt", "x")
-		mkfile.close()
-		mkfile = open("data/words/"+category+"/verbs.txt", "x")
-		mkfile.close()
-		mkfile = open("data/words/"+category+"/keywords.txt", "x")
-		mkfile.close()
-		status("I just learned about "+category+"!")
-
-def check_user(userid, username):
-	if not userid in users:
-		users[userid] = {"username":username}
-		save_user(userid, username)
 
 def ai(message):
 	if message.content.lower().split(" ")[1] == "keyword":
@@ -184,7 +94,7 @@ async def on_message(message):
 	if message.content.startswith(".") and str(message.author) in admins:
 		if message.content.lower().split(" ")[0] == ".stop":
 			await channel.send("`"+pf("i")+"Client logout called."+"`")
-			status("I will be inaccessible for a while. Sorry!")
+			t.tweet("I will be inaccessible for a while. Sorry!")
 			await client.logout()
 		elif message.content.lower().split(" ")[0] == ".ping":
 			await channel.send("`"+pf("i")+"Pong!"+"`")
@@ -207,7 +117,7 @@ async def on_message(message):
 			else:
 				await channel.send("`"+pf("i")+"enable_twitter = "+str(enable_twitter)+"`")
 		elif message.content.lower().split(" ")[0] == ".tweet":
-			twitter.tweet(message.content[7:])
+			t.tweet(message.content[7:])
 			await channel.send("`"+pf("Tweet")+"Twitter status update called."+"`")
 		elif message.content.lower().split(" ")[0] == ".whitelist":
 			if message.content.lower().split(" ")[1] == "on":
@@ -234,21 +144,14 @@ async def on_message(message):
 @client.event
 async def on_ready():
 	print(pf("i")+"> Username: "+client.user.name+"\n"+pf("i")+"> User-ID: "+str(client.user.id))
-	status("I'm back online!")
-	print(pf("DONE")+"Mitsuha ready!\n")
+	print(pf("DONE")+"Taki ready!\n")
 
-print(pf("(o/)")+"Mitsuha starting up! ^-^/")
+print(pf("(o/)")+"Taki starting up!")
 
 print(pf("i")+"Initializing...")
-lemmatizer = WordNetLemmatizer()
-print(pf("i")+"> Lemmatizer defined.")
-words = {}
-phrases = {}
-users = {}
 admins = []
 auth = []
 whitelist = True
-enable_twitter = True
 print(pf("i")+"> Lists initialized.")
 print(pf("i")+"Initialized.")
 load()
