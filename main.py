@@ -6,111 +6,125 @@ import os
 import time
 import twitter as t
 
-with open("tokens.txt", "r") as tokens_file:
+with open('tokens.txt', 'r') as tokens_file:
 	for line in tokens_file:
-		if line.startswith("discord_token: "):
-			discord_token = line.split(": ")[1].replace("\n","")
+		if line.startswith('discord_token: '):
+			discord_token = line.split(': ')[1].replace('\n','')
 
 client = discord.Client()
 
 def pf(preftype):
 	currenttime = str(datetime.datetime.now())[11:19]
-	if preftype == "rt":
+	if preftype == 'rt':
 		return currenttime
-	elif preftype == "t" or preftype == "":
-		return "["+currenttime+"] "
-	elif preftype == "i":
-		return "["+currenttime+"/Info] "
-	elif preftype == "e":
-		return "["+currenttime+"/ERROR] "
+	elif preftype == 't' or preftype == '':
+		return '['+currenttime+'] '
+	elif preftype == 'i':
+		return '['+currenttime+'/Info] '
+	elif preftype == 'e':
+		return '['+currenttime+'/ERROR] '
 	else:
-		return "["+currenttime+"/"+preftype+"] "
+		return '['+currenttime+'/'+preftype+'] '
 
 def load():
-	print(pf("i")+"Loading data...")
+	print(pf('i')+'Loading data...')
 	admins.clear()
 	auth.clear()
 
 	i_c = 0
 	i = 0
-	with open("data/admins.txt", "r") as admins_file:
+	with open('data/admins.txt', 'r') as admins_file:
 		for line in admins_file:
-			admins.append(line.replace("\n", ""))
+			admins.append(line.replace('\n', ''))
 			i += 1
-	print(pf("i")+"> Loaded "+str(i)+" admins.")
+	print(pf('i')+'> Loaded '+str(i)+' admins.')
 	i = 0
 
-	with open("data/whitelist.txt", "r") as whitelistfile:
+	with open('data/whitelist.txt', 'r') as whitelistfile:
 		for line in whitelistfile:
-			auth.append(line.replace("\n", ""))
+			auth.append(line.replace('\n', ''))
 			i += 1
-	print(pf("i")+"> Loaded "+str(i)+" authorized users.")
+	print(pf('i')+'> Loaded '+str(i)+' authorized users.')
 	i_c = 0
 	i = 0
 
-	print(pf("i")+"Data loaded.")
+	print(pf('i')+'Data loaded.')
 
 def process(msg):
-	return 'currently wip!'
+	if msg.content.lower().startswith('add;'):
+		try:
+			r_artist = msg.content.split(';')[1]
+			r_title = msg.content.split(';')[2]
+			r_link = msg.content.split(';')[3]
+		except:
+			return 'The message format is invalid. Type \'?\' for help.'
+
+		with open('data/pending/'+r_artist+'_'+r_title+'.txt', 'w') as r_file:
+			r_file.write(r_link)
+
+		return 'Successfully added '+r_artist+' - '+r_title+' to the recommendation pool.'
+
+	else:
+		return 'Unable to process the message. Type \'?\' for help.'
 
 @client.event
 async def on_message(message):
 	channel = message.channel
-	print(pf("Log")+str(message.author)+": "+message.content)
+	print(pf('Log')+str(message.author)+': '+message.content)
 	if message.author == client.user:
 		return
 	global whitelist
 	if whitelist == True and not str(message.author) in auth:
-		await channel.send("Sorry, I may only talk to authorized users.")
+		await channel.send('Sorry, I may only talk to authorized users.')
 		return
 
-	if message.content.startswith(".") and str(message.author) in admins:
-		if message.content.lower().split(" ")[0] == ".stop":
-			await channel.send("`"+pf("i")+"Client logout called."+"`")
+	if message.content.startswith('.') and str(message.author) in admins:
+		if message.content.lower().split(' ')[0] == '.stop':
+			await channel.send('`'+pf('i')+'Client logout called.'+'`')
 			await client.logout()
-		elif message.content.lower().split(" ")[0] == ".ping":
-			await channel.send("`"+pf("i")+"Pong!"+"`")
-		elif message.content.lower().split(" ")[0] == ".i":
-			print(pf("i")+"Message ignored.")
-		elif message.content.lower().split(" ")[0] == ".api":
-			await channel.send("`"+pf("i")+discord.__version__+"`")
-		elif message.content.lower().split(" ")[0] == ".reload":
+		elif message.content.lower().split(' ')[0] == '.ping':
+			await channel.send('`'+pf('i')+'Pong!'+'`')
+		elif message.content.lower().split(' ')[0] == '.i':
+			print(pf('i')+'Message ignored.')
+		elif message.content.lower().split(' ')[0] == '.api':
+			await channel.send('`'+pf('i')+discord.__version__+'`')
+		elif message.content.lower().split(' ')[0] == '.reload':
 			load()
-			await channel.send("`"+pf("i")+"Data successfully reloaded."+"`")
-		elif message.content.lower().split(" ")[0] == ".tweet":
+			await channel.send('`'+pf('i')+'Data successfully reloaded.'+'`')
+		elif message.content.lower().split(' ')[0] == '.tweet':
 			t.tweet(message.content[7:])
-			await channel.send("`"+pf("Tweet")+"Twitter status update called."+"`")
-		elif message.content.lower().split(" ")[0] == ".whitelist":
-			if message.content.lower().split(" ")[1] == "on":
+			await channel.send('`'+pf('Tweet')+'Twitter status update called.'+'`')
+		elif message.content.lower().split(' ')[0] == '.whitelist':
+			if message.content.lower().split(' ')[1] == 'on':
 				whitelist = True
-				await channel.send("`"+pf("i")+"Whitelist successfully enabled."+"`")
-			elif message.content.lower().split(" ")[1] == "off":
+				await channel.send('`'+pf('i')+'Whitelist successfully enabled.'+'`')
+			elif message.content.lower().split(' ')[1] == 'off':
 				whitelist = False
-				await channel.send("`"+pf("i")+"Whitelist successfully disabled."+"`")
+				await channel.send('`'+pf('i')+'Whitelist successfully disabled.'+'`')
 			else:
-				await channel.send("`"+pf("i")+"auth = "+str(auth)+"`")
+				await channel.send('`'+pf('i')+'auth = '+str(auth)+'`')
 		else:
-			await channel.send("`"+pf("e")+"Invalid command."+"`")
+			await channel.send('`'+pf('e')+'Invalid command.'+'`')
 
-	elif message.content.lower() == "hello!":
-		await channel.send("Hi there!")
+	elif message.content.lower() == 'hello!':
+		await channel.send('Hi there!')
 
 	else:
 		await channel.send(process(message))
 
 @client.event
 async def on_ready():
-	print(pf("i")+"> Username: "+client.user.name+"\n"+pf("i")+"> User-ID: "+str(client.user.id))
-	print(pf("DONE")+"Taki ready!\n")
+	print(pf('i')+'> Username: '+client.user.name+'\n'+pf('i')+'> User-ID: '+str(client.user.id))
+	print(pf('DONE')+'Taki ready!\n')
 
-print(pf("(o/)")+"Taki starting up!")
+print(pf('(o/)')+'Taki starting up!')
 
-print(pf("i")+"Initializing...")
+print(pf('i')+'Initializing...')
 admins = []
 auth = []
 whitelist = True
-print(pf("i")+"> Lists initialized.")
-print(pf("i")+"Initialized.")
+print(pf('i')+'> Lists initialized.')
+print(pf('i')+'Initialized.')
 load()
-print(pf("i")+"Logging into discord...")
+print(pf('i')+'Logging into discord...')
 client.run(discord_token)
