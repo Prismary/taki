@@ -110,7 +110,10 @@ def process(msg):
 @client.event
 async def on_message(message):
 	channel = message.channel
-	print(pf('Log')+str(message.author)+': '+message.content)
+	try:
+		print(pf('Log')+str(message.author)+': '+message.content)
+	except:
+		print(pf('Log')+'[!]: Log failed due to unicode error')
 	if message.author == client.user:
 		return
 	global whitelist
