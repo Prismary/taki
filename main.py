@@ -5,7 +5,6 @@ import datetime
 import os
 import time
 import twitter as t
-from shutil import copyfile
 import sqlite3
 import re
 
@@ -75,7 +74,7 @@ def process(msg):
 		cursor.execute(
 			'''INSERT INTO "main.Songs" (Artist, Title, User, Timestamp)
 			VALUES (?, ?, ?, ?);''',
-			(r_artist, r_title, msg.author.id, msg.created_at)
+			(r_artist, r_title, msg.author.id, time.time())
 		)
 		cursor.execute(
 			'''INSERT INTO "main.Links" (Link, LinkTypeID, SongID)
@@ -101,7 +100,7 @@ def process(msg):
 				return 'The message format is invalid. Type \'?\' for help.'
 
 			cursor.execute(
-				'''SELECT * FROM main.Songs
+				'''SELECT * FROM "main.Songs"
 				WHERE Artist = ? AND Title = ?;''', (r_artist, r_title)
 			)
 
@@ -128,7 +127,7 @@ def process(msg):
 		cursor.execute(
             '''UPDATE "main.Songs"
 			SET Posted = ?
-			WHERE SongID = ?;''', (msg.created_at, r_songid)
+			WHERE SongID = ?;''', (time.time(), r_songid)
         )
 		conn.commit()
 
