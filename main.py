@@ -6,6 +6,12 @@ import os
 import time
 import twitter as t
 from shutil import copyfile
+import sqlite3
+import re
+
+conn = sqlite3.connect('taki.db')
+conn.create_function('REGEXP', 2, lambda x, y: 1 if re.search(x,y) else 0)
+cursor = conn.cursor()
 
 with open('tokens.txt', 'r') as tokens_file:
 	for line in tokens_file:
@@ -63,26 +69,30 @@ def process(msg):
 		except:
 			return 'The message format is invalid. Type \'?\' for help.'
 
-		with open('data/pending/'+r_artist+'_'+r_title+'.txt', 'w') as r_file:
-			r_file.write('artist;'+r_artist+'\n')
-			r_file.write('title;'+r_title+'\n')
-			r_file.write('link;'+r_link+'\n')
+		cursor.execute("""SELECT LinkTypeID FROM "main.LinkTypes" WHERE ? REGEXP Regex;""", (r_link,))
+		linktypeid = cursor.fetchone()[0]
+
+		cursor.execute(
+			'''INSERT INTO "main.Songs" (Artist, Title, User, Timestamp)
+			VALUES (?, ?, ?, ?);''',
+			(r_artist, r_title, msg.author.id, msg.created_at)
+		)
+		cursor.execute(
+			'''INSERT INTO "main.Links" (Link, LinkTypeID, SongID)
+			VALUES (?, ?, last_insert_rowid());''',
+			(r_link, linktypeid)
+		)
+		conn.commit()
 
 		return 'Successfully added **'+r_artist+' - '+r_title+'** to the recommendation pool.'
 
 	elif msg.content.lower().startswith('rec;'):
 		if msg.content.lower().split(';')[1] == 'random':
-			for files in os.walk('data/pending'):
-				filename = files[2][random.randrange(0, len(files[2])+1)]
+			cursor.execute(
+				'''SELECT * FROM "main.Songs"
+				WHERE SongID IN (SELECT SongID FROM "main.Songs" WHERE Posted IS NULL ORDER BY RANDOM() LIMIT 1);'''
+			)
 
-			with open('data/pending/'+filename, 'r') as r_file:
-				for line in r_file:
-					if line.startswith('artist;'):
-						r_artist = line.split(';')[1].replace('\n', '')
-					elif line.startswith('title;'):
-						r_title = line.split(';')[1].replace('\n', '')
-					elif line.startswith('link;'):
-						r_link = line.split(';')[1].replace('\n', '')
 		else:
 			try:
 				r_artist = msg.content.split(';')[1]
@@ -90,18 +100,38 @@ def process(msg):
 			except:
 				return 'The message format is invalid. Type \'?\' for help.'
 
-			try:
-				with open('data/pending/'+r_artist+'_'+r_title+'.txt', 'r') as r_file:
-					for line in r_file:
-						if line.startswith('link;'):
-							r_link = line.split(';')[1].replace('\n', '')
-			except:
-				return 'The specified file does not exist.'
+			cursor.execute(
+				'''SELECT * FROM main.Songs
+				WHERE Artist = ? AND Title = ?;''', (r_artist, r_title)
+			)
+
+		rows = cursor.fetchone()
+
+		try:
+			r_songid = rows[0]
+			r_artist = rows[1]
+			r_title = rows[2]
+			r_posted = rows[3]
+		except:
+			return 'No suitable songs have been found in the database.'
+
+		cursor.execute('''
+            SELECT l.Link,lt.TypeName FROM "main.Links" AS l
+            JOIN "main.LinkTypes" AS lt ON l.LinkTypeID = lt.LinkTypeID
+            WHERE SongID = ? AND TypeName = "YouTube";''', (r_songid,)
+        )
+		r_links = cursor.fetchone()
+		r_link = r_links[0]
 
 		print(pf('Tweet')+t.tweet(''+r_artist+' - '+r_title+'\n\n'+r_link))
-		copyfile('data/pending/'+r_artist+'_'+r_title+'.txt', 'data/posted/'+r_artist+'_'+r_title+'.txt')
-		os.remove('data/pending/'+r_artist+'_'+r_title+'.txt')
-		print(pf('i')+'> File transferred from /pending/ to /posted/.')
+
+		cursor.execute(
+            '''UPDATE "main.Songs"
+			SET Posted = ?
+			WHERE SongID = ?;''', (msg.created_at, r_songid)
+        )
+		conn.commit()
+
 		return 'Successfully posted **'+r_artist+' - '+r_title+'** to Twitter.'
 
 	else:
