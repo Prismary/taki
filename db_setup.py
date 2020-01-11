@@ -7,7 +7,7 @@ def setup():
             SongID INTEGER PRIMARY KEY,
             Artist TEXT,
             Title TEXT,
-            Posted INTEGER DEFAULT NULL,
+            Posted REAL DEFAULT NULL,
             User INTEGER,
             Timestamp INTEGER
             );'''
@@ -38,5 +38,6 @@ def setup():
             );'''
         )
         db.commit()
+    return 'Database setup complete.'
 
-setup()
+print(setup())
