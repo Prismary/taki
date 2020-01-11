@@ -18,6 +18,6 @@ def tweet(msg):
 
 	try:
 		api.update_status(msg)
-		return "> Status posted to twitter."
+		return "> Successfully posted status to twitter."
 	except tweepy.TweepError:
-	    return "> Failed to post status to twitter."
+	    return "> Error while posting status to twitter."
