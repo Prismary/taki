@@ -68,6 +68,20 @@ def process(msg):
 		except:
 			return 'The message format is invalid. Type \'?\' for help.'
 
+		cursor.execute(
+			'''SELECT * FROM "main.Songs"
+			WHERE Artist = ? COLLATE NOCASE
+			AND Title = ? COLLATE NOCASE;''', (r_artist, r_title)
+		)
+		rows = cursor.fetchone()
+		try:
+			r_songid = rows[0]
+			r_artist = rows[1]
+			r_title = rows[2]
+			return 'The specified song already exists: **'+str(r_artist)+' - '+str(r_title)+'** (ID: '+str(r_songid)+')'
+		except:
+			pass
+
 		cursor.execute("""SELECT LinkTypeID FROM "main.LinkTypes" WHERE ? REGEXP Regex;""", (r_link,))
 		linktypeid = cursor.fetchone()[0]
 
@@ -191,12 +205,9 @@ async def on_ready():
 
 print(pf('(o/)')+'Taki starting up!')
 
-print(pf('i')+'Initializing...')
 admins = []
 auth = []
 whitelist = True
-print(pf('i')+'> Lists initialized.')
-print(pf('i')+'Initialized.')
 load()
 print(pf('i')+'Logging into discord...')
 client.run(discord_token)
