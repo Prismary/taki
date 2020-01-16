@@ -58,7 +58,14 @@ def load():
 
 def process(msg):
 	if msg.content == '?':
-		return '__**Command-Usage**__\n```Markdown\n# Add a song to the recommendation pool:\n\nadd;<artist>;<title>;<link>\n\n\n# Post a recommendation to Twitter:\n\nrec;[random/;<artist>;<title>]\n```'
+		return '''__**Command-Usage**__\n```Markdown\n
+			# Add a song to the recommendation pool:\n\n
+			add;<artist>;<title>;<link>\n\n\n
+			# Post a recommendation to Twitter:\n\n
+			rec;[random/;<artist>;<title>]\n\n\n
+			# List songs by given criteria\n\n
+			list;[all/id;<id>/artist;<artist>/title;<title>]\n
+			```'''
 
 	elif msg.content.lower().startswith('add;'):
 		try:
@@ -146,6 +153,26 @@ def process(msg):
 		conn.commit()
 
 		return 'Successfully posted **'+r_artist+' - '+r_title+'** to Twitter.'
+
+	elif msg.content.lower().startswith('list;'):
+		if msg.content.lower().split(';')[1] == 'all':
+			cursor.execute(
+				'''SELECT * FROM "main.Songs";'''
+				)
+			rows = cursor.fetchall()
+			try:
+				songids = rows[0]
+				artists = rows[1]
+				titles = rows[2]
+			except:
+				return 'No suitable songs have been found in the database.'
+
+		slist = 'These songs match your criteria:\n\n```'
+		i = 0
+		for item in songids:
+			slist = slist+str(songids[i])+': '+str(artists[i])+' - '+str(titles[i])+'\n'
+		slist = slist+'```'
+		return slist
 
 	else:
 		return 'Unable to process the message. Type \'?\' for help.'
