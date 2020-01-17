@@ -58,14 +58,7 @@ def load():
 
 def process(msg):
 	if msg.content == '?':
-		return '''__**Command-Usage**__\n```Markdown\n
-			# Add a song to the recommendation pool:\n\n
-			add;<artist>;<title>;<link>\n\n\n
-			# Post a recommendation to Twitter:\n\n
-			rec;[random/;<artist>;<title>]\n\n\n
-			# List songs by given criteria\n\n
-			list;[all/id;<id>/artist;<artist>/title;<title>]\n
-			```'''
+		return '__**Command-Usage**__\n```Markdown\n# Add a song to the recommendation pool:\n\nadd;<artist>;<title>;<link>\n\n\n# Post a recommendation to Twitter:\n\nrec;[random/;<artist>;<title>]\n\n\n# List songs by given criteria\n\nlist;[all/id;<id>/artist;<artist>/title;<title>]\n```'
 
 	elif msg.content.lower().startswith('add;'):
 		try:
