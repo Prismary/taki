@@ -159,20 +159,36 @@ def process(msg):
 			cursor.execute(
 				'''SELECT * FROM "main.Songs";'''
 				)
-			rows = cursor.fetchall()
+		else:
 			try:
-				songids = rows[0]
-				artists = rows[1]
-				titles = rows[2]
+				searchby = msg.content.split(';')[1]
+				searchfor = msg.content.split(';')[2]
 			except:
-				return 'No suitable songs have been found in the database.'
+				return 'The message format is invalid. Type \'?\' for help.'
 
-		slist = 'These songs match your criteria:\n\n```'
-		i = 0
-		for item in songids:
-			slist = slist+str(songids[i])+': '+str(artists[i])+' - '+str(titles[i])+'\n'
-		slist = slist+'```'
-		return slist
+			if searchby.lower() == 'id':
+				searchby = 'SongID'
+			elif searchby.lower() == 'artist':
+				searchby = 'Artist'
+			elif searchby.lower() == 'title':
+				searchby = 'Title'
+			else:
+				return 'The search criteria is invalid. Type \'?\' for help.'
+
+			cursor.execute(
+				'''SELECT * FROM "main.Songs"
+				WHERE {} = ? COLLATE NOCASE;'''.format(searchby), (searchfor,)
+			)
+
+		rows = cursor.fetchall()
+
+		if rows != []:
+			slist = 'These songs match your criteria:\n\n'
+			for item in rows:
+				slist = slist+'`['+str(item[0])+']` '+str(item[1])+' - '+str(item[2])+'\n'
+			return slist
+		else:
+			return 'No suitable songs have been found in the database.'
 
 	else:
 		return 'Unable to process the message. Type \'?\' for help.'
