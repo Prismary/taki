@@ -176,10 +176,18 @@ def process(msg):
 		rows = cursor.fetchall()
 
 		if rows != []:
+			overflow = 0
 			slist = 'These songs match your criteria:\n\n'
 			for item in rows:
-				slist = slist+'`['+str(item[0])+']` '+str(item[1])+' - '+str(item[2])+'\n'
-			return slist
+				if len(slist+'`['+str(item[0])+']` '+str(item[1])+' - '+str(item[2])+'\n') <= 2000:
+					slist = slist+'`['+str(item[0])+']` '+str(item[1])+' - '+str(item[2])+'\n'
+				else:
+					overflow += 1
+
+			if overflow == 0:
+				return slist
+			else:
+				return slist + '\n*... and '+str(overflow)+' more*'
 		else:
 			return 'No suitable songs have been found in the database.'
 
