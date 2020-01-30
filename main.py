@@ -191,6 +191,42 @@ def process(msg):
 		else:
 			return 'No suitable songs have been found in the database.'
 
+	elif msg.content.lower().startswith('delete;'):
+		try:
+			id = int(msg.content.split(';')[1])
+		except:
+			return 'The message format is invalid. Type \'?\' for help.'
+
+		try:
+			confirmed = False
+			if msg.content.split(';')[2] == 'confirm':
+				confirmed = True
+		except:
+			pass
+
+		cursor.execute(
+			'''SELECT * FROM "main.Songs"
+			WHERE SongID = ?;''', (id,)
+		)
+
+		rows = cursor.fetchall()
+
+		if rows != []:
+			if confirmed == False:
+				delmsg = '**You are about to delete:**\n\n'
+				delmsg = delmsg+'`['+str(rows[0][0])+']` '+str(rows[0][1])+' - '+str(rows[0][2])+'\n'
+				delmsg = delmsg+'\nAre you *absolutely sure* you want to delete this song?\nConfirm by typing `delete;'+str(id)+';confirm`'
+				return delmsg
+			else:
+				cursor.execute(
+		            '''DELETE FROM "main.Songs"
+					WHERE SongID = ?;''', (id,)
+		        )
+				conn.commit()
+				return 'You have successfully deleted **'+str(rows[0][1])+' - '+str(rows[0][2])+'** from the database.'
+		else:
+			return 'Unable to find ID `'+str(id)+'` in the database.'
+
 	else:
 		return 'Unable to process the message. Type \'?\' for help.'
 
