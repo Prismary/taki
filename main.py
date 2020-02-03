@@ -37,7 +37,6 @@ def load():
 	admins.clear()
 	auth.clear()
 
-	i_c = 0
 	i = 0
 	with open('data/admins.txt', 'r') as admins_file:
 		for line in admins_file:
@@ -51,8 +50,6 @@ def load():
 			auth.append(line.replace('\n', ''))
 			i += 1
 	print(pf('i')+'> Loaded '+str(i)+' authorized users.')
-	i_c = 0
-	i = 0
 
 	print(pf('i')+'Data loaded.')
 
@@ -254,6 +251,8 @@ async def on_message(message):
 			print(pf('i')+'Message ignored.')
 		elif message.content.lower().split(' ')[0] == '.api':
 			await channel.send('`'+pf('i')+discord.__version__+'`')
+		elif message.content.lower().split(' ')[0] == '.id':
+			await channel.send('`'+pf('i')+str(message.channel.id)+'`')
 		elif message.content.lower().split(' ')[0] == '.reload':
 			load()
 			await channel.send('`'+pf('i')+'Data successfully reloaded.'+'`')
@@ -291,3 +290,11 @@ whitelist = True
 load()
 print(pf('i')+'Logging into discord...')
 client.run(discord_token)
+
+
+# NOTE FROM AUTHOR - 02/02/2020
+# Alongside millions of public GitHub repositories, this rather insignificant software is going to be archived inside the arctic code vault in Svalbard.
+# This message will likely remain readable for hundreds, if not thousands of years.
+# I'd like to use this opportunity to thank the few people supporting me through my daily life, you're seriously the best! ALT+3
+# Once this message gets decoded again - if at all - everything I am currently worried about will have no significance anymore whatsoever.
+# I wish you the best of luck.
