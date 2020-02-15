@@ -1,15 +1,12 @@
 import tweepy
+import yaml
 
-with open("tokens.txt", "r") as tokens_file:
-	for line in tokens_file:
-		if line.startswith("consumer_token: "):
-			consumer_token = line.split(": ")[1].replace("\n","")
-		elif line.startswith("consumer_secret: "):
-			consumer_secret = line.split(": ")[1].replace("\n","")
-		elif line.startswith("access_token: "):
-			access_token = line.split(": ")[1].replace("\n","")
-		elif line.startswith("access_secret: "):
-			access_secret = line.split(": ")[1].replace("\n","")
+with open('config.yml', 'r') as cfgfile:
+    config = yaml.load(cfgfile, Loader=yaml.FullLoader)
+consumer_token = config['tokens']['twitter']['consumer_token']
+consumer_secret = config['tokens']['twitter']['consumer_secret']
+access_token = config['tokens']['twitter']['access_token']
+access_secret = config['tokens']['twitter']['access_secret']
 
 def tweet(msg):
 	auth = tweepy.OAuthHandler(consumer_token, consumer_secret)

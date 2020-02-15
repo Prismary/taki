@@ -4,28 +4,27 @@ import random
 import datetime
 import os
 import time
-import twitter as t
 import sqlite3
 import re
-
-whitelist = True
+import yaml
+import twitter as t
 
 conn = sqlite3.connect('taki.db')
 conn.create_function('REGEXP', 2, lambda x, y: 1 if re.search(x,y) else 0)
 cursor = conn.cursor()
 
-with open('tokens.txt', 'r') as tokens_file:
-	for line in tokens_file:
-		if line.startswith('discord_token: '):
-			discord_token = line.split(': ')[1].replace('\n','')
+with open('config.yml', 'r') as cfgfile:
+    config = yaml.load(cfgfile, Loader=yaml.FullLoader)
+whitelist = config['settings']['whitelist']
+discord_token = config['tokens']['discord']['discord_token']
 
 client = discord.Client()
 
-def pf(preftype):
+def pf(preftype='t'):
 	currenttime = str(datetime.datetime.now())[11:19]
 	if preftype == 'rt':
 		return currenttime
-	elif preftype == 't' or preftype == '':
+	elif preftype == 't':
 		return '['+currenttime+'] '
 	elif preftype == 'i':
 		return '['+currenttime+'/Info] '
@@ -34,7 +33,18 @@ def pf(preftype):
 	else:
 		return '['+currenttime+'/'+preftype+'] '
 
-def auth(level_required, user_id):
+async def send(channel, msg, type='default'):
+	if type == 'cmd_i':
+		msg = '`'+pf('i')+msg+'`'
+	elif type == 'cmd_e':
+		msg = '`'+pf('e')+msg+'`'
+	elif type == 'cmd_t':
+		msg = '`'+pf('t')+msg+'`'
+	elif type == 'cmd_tweet':
+		msg = '`'+pf('Tweet')+msg+'`'
+	await channel.send(msg)
+
+def auth(user_id, level_required):
 	cursor.execute(
 		'''SELECT Level FROM "main.Auth"
 		WHERE User = ?;''', (user_id,)
@@ -49,7 +59,7 @@ def auth(level_required, user_id):
 	else:
 		return False
 
-def set_auth(set_level, user_id):
+def set_auth(user_id, set_level):
 	cursor.execute(
 		'''SELECT Level FROM "main.Auth"
 		WHERE User = ?;''', (user_id,)
@@ -74,6 +84,9 @@ def process(msg):
 		return '__**Command-Usage**__\n```Markdown\n# Add a song to the recommendation pool:\n\nadd;<artist>;<title>;<link>\n\n\n# Post a recommendation to Twitter:\n\nrec;[random/;<artist>;<title>]\n\n\n# List songs by given criteria\n\nlist;[all/id;<id>/artist;<artist>/title;<title>]\n```'
 
 	elif msg.content.lower().startswith('add;'):
+		if not auth(msg.author.id, 1):
+			return 'Sorry, your authorization level is insufficient for this command.'
+
 		try:
 			r_artist = msg.content.split(';')[1]
 			r_title = msg.content.split(';')[2]
@@ -113,6 +126,9 @@ def process(msg):
 		return 'Successfully added **'+r_artist+' - '+r_title+'** to the recommendation pool.'
 
 	elif msg.content.lower().startswith('rec;'):
+		if not auth(msg.author.id, 2):
+			return 'Sorry, your authorization level is insufficient for this command.'
+
 		if msg.content.lower().split(';')[1] == 'random':
 			cursor.execute(
 				'''SELECT * FROM "main.Songs"
@@ -161,6 +177,9 @@ def process(msg):
 		return 'Successfully posted **'+r_artist+' - '+r_title+'** to Twitter.'
 
 	elif msg.content.lower().startswith('list;'):
+		if not auth(msg.author.id, 1):
+			return 'Sorry, your authorization level is insufficient for this command.'
+
 		if msg.content.lower().split(';')[1] == 'all':
 			cursor.execute(
 				'''SELECT * FROM "main.Songs";'''
@@ -205,6 +224,9 @@ def process(msg):
 			return 'No suitable songs have been found in the database.'
 
 	elif msg.content.lower().startswith('delete;'):
+		if not auth(msg.author.id, 2):
+			return 'Sorry, your authorization level is insufficient for this command.'
+
 		try:
 			id = int(msg.content.split(';')[1])
 		except:
@@ -250,50 +272,58 @@ async def on_message(message):
 	try:
 		print(pf('Log')+str(message.author)+': '+message.content)
 	except:
-		print(pf('Log')+'[!]: Log failed due to unicode error')
+		print(pf('Log')+'[!]: Log failed due to unicode error.')
 	if message.author == client.user:
 		return
 	global whitelist
-	if whitelist == True and not auth(1, message.author.id):
-		await channel.send('Sorry, I may only talk to authorized users.')
+	if whitelist == True and not auth(message.author.id, 1):
+		await send(channel, 'Sorry, I may only talk to authorized users.')
 		return
 
-	if mcl.startswith('.') and auth(3, message.author.id):
-		if mcl.split(' ')[0] == '.stop':
-			await channel.send('`'+pf('i')+'Client logout called.'+'`')
-			await client.logout()
-		elif mcl.split(' ')[0] == '.ping':
-			await channel.send('`'+pf('i')+'Pong!'+'`')
-		elif mcl.split(' ')[0] == '.i':
-			print(pf('i')+'Message ignored.')
-		elif mcl.split(' ')[0] == '.api':
-			await channel.send('`'+pf('i')+discord.__version__+'`')
-		elif mcl.split(' ')[0] == '.id':
-			await channel.send('`'+pf('i')+str(message.channel.id)+'`')
-		elif mcl.split(' ')[0] == '.tweet':
-			print(pf('Tweet')+t.tweet(message.content[7:]))
-			await channel.send('`'+pf('Tweet')+'Twitter status update called.'+'`')
-		elif mcl.split(' ')[0] == '.auth':
-			try:
-				set_auth(int(message.content.split(' ')[1]), int(message.content.split(' ')[2]))
-			except:
-				await channel.send('`'+pf('e')+'Level and UserID must be integers.'+'`')
+	if mcl.startswith('.'):
+		if auth(message.author.id, 3):
+			cmd = mcl.split(' ')[0]
+
+			if cmd == '.stop':
+				await send(channel, 'Client logout called.', 'cmd_i')
+				await client.logout()
+			elif cmd == '.ping':
+				await send(channel, 'Pong!', 'cmd_i')
+			elif cmd == '.i':
+				print(pf('i')+'Message ignored.')
+			elif cmd == '.api':
+				await send(channel, discord.__version__, 'cmd_i')
+			elif cmd == '.cid':
+				await send(channel, str(message.channel.id), 'cmd_i')
+			elif cmd == '.uid':
+				await send(channel, str(message.author.id), 'cmd_i')
+			elif cmd == '.tweet':
+				print(pf('Tweet')+t.tweet(message.content[7:]))
+				await send(channel, 'Twitter status update called.', 'cmd_tweet')
+			elif cmd == '.auth':
+				try:
+					set_auth(int(message.content.split(' ')[1]), int(message.content.split(' ')[2]))
+					await send(channel, 'Permission level successfully updated.', 'cmd_i')
+				except:
+					await send(channel, 'Level and UserID must be integers.', 'cmd_e')
+				else:
+					await send(channel, 'Invalid command.', 'cmd_e')
 		else:
-			await channel.send('`'+pf('e')+'Invalid command.'+'`')
+			await send(channel, 'Sorry, your authorization level is insufficient for this command.')
 
 	elif mcl == 'hello!':
-		await channel.send('Hi there!')
+		await send(channel, 'Hi there!')
 	elif mcl == 'id':
-		await channel.send('Here\'s your User-ID: '+str(message.author.id))
+		await send(channel, 'Here\'s your User-ID: '+str(message.author.id))
 
 	else:
-		await channel.send(process(message))
+		await send(channel, process(message))
 
 @client.event
 async def on_ready():
 	print(pf('i')+'> Username: '+client.user.name+'\n'+pf('i')+'> User-ID: '+str(client.user.id))
 	print(pf('DONE')+'Taki ready!\n')
 
-print(pf('(o/)')+'Taki starting up!')
+print(pf('^-^/')+'Taki starting up!')
 print(pf('i')+'Logging into discord...')
 client.run(discord_token)

@@ -1,0 +1,11 @@
+settings:
+  whitelist: true
+
+tokens:
+  discord:
+    discord_token: TOKEN
+  twitter:
+    consumer_token: TOKEN
+    consumer_secret: TOKEN
+    access_token: TOKEN
+    access_secret: TOKEN
