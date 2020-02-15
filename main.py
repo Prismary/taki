@@ -8,6 +8,8 @@ import twitter as t
 import sqlite3
 import re
 
+whitelist = True
+
 conn = sqlite3.connect('taki.db')
 conn.create_function('REGEXP', 2, lambda x, y: 1 if re.search(x,y) else 0)
 cursor = conn.cursor()
@@ -32,26 +34,40 @@ def pf(preftype):
 	else:
 		return '['+currenttime+'/'+preftype+'] '
 
-def load():
-	print(pf('i')+'Loading data...')
-	admins.clear()
-	auth.clear()
+def auth(level_required, user_id):
+	cursor.execute(
+		'''SELECT Level FROM "main.Auth"
+		WHERE User = ?;''', (user_id,)
+	)
+	try:
+		level = int(cursor.fetchone()[0])
+	except:
+		level = 0
 
-	i = 0
-	with open('data/admins.txt', 'r') as admins_file:
-		for line in admins_file:
-			admins.append(line.replace('\n', ''))
-			i += 1
-	print(pf('i')+'> Loaded '+str(i)+' admins.')
-	i = 0
+	if level >= level_required:
+		return True
+	else:
+		return False
 
-	with open('data/whitelist.txt', 'r') as whitelistfile:
-		for line in whitelistfile:
-			auth.append(line.replace('\n', ''))
-			i += 1
-	print(pf('i')+'> Loaded '+str(i)+' authorized users.')
-
-	print(pf('i')+'Data loaded.')
+def set_auth(set_level, user_id):
+	cursor.execute(
+		'''SELECT Level FROM "main.Auth"
+		WHERE User = ?;''', (user_id,)
+	)
+	try:
+		level = int(cursor.fetchone()[0])
+		cursor.execute(
+			'''UPDATE "main.Auth"
+			SET Level = ?
+			WHERE User = ?;''', (set_level, user_id)
+		)
+	except:
+		cursor.execute(
+			'''INSERT INTO "main.Auth" (User, Level)
+			VALUES (?, ?);''',
+			(user_id, set_level)
+		)
+	conn.commit()
 
 def process(msg):
 	if msg.content == '?':
@@ -176,7 +192,7 @@ def process(msg):
 			overflow = 0
 			slist = 'These songs match your criteria:\n\n'
 			for item in rows:
-				if len(slist+'`['+str(item[0])+']` '+str(item[1])+' - '+str(item[2])+'\n') <= 2000:
+				if len(slist+'`['+str(item[0])+']` '+str(item[1])+' - '+str(item[2])+'\n') <= 1980:
 					slist = slist+'`['+str(item[0])+']` '+str(item[1])+' - '+str(item[2])+'\n'
 				else:
 					overflow += 1
@@ -230,6 +246,7 @@ def process(msg):
 @client.event
 async def on_message(message):
 	channel = message.channel
+	mcl = message.content.lower()
 	try:
 		print(pf('Log')+str(message.author)+': '+message.content)
 	except:
@@ -237,42 +254,37 @@ async def on_message(message):
 	if message.author == client.user:
 		return
 	global whitelist
-	if whitelist == True and not str(message.author) in auth:
+	if whitelist == True and not auth(1, message.author.id):
 		await channel.send('Sorry, I may only talk to authorized users.')
 		return
 
-	if message.content.startswith('.') and str(message.author) in admins:
-		if message.content.lower().split(' ')[0] == '.stop':
+	if mcl.startswith('.') and auth(3, message.author.id):
+		if mcl.split(' ')[0] == '.stop':
 			await channel.send('`'+pf('i')+'Client logout called.'+'`')
 			await client.logout()
-		elif message.content.lower().split(' ')[0] == '.ping':
+		elif mcl.split(' ')[0] == '.ping':
 			await channel.send('`'+pf('i')+'Pong!'+'`')
-		elif message.content.lower().split(' ')[0] == '.i':
+		elif mcl.split(' ')[0] == '.i':
 			print(pf('i')+'Message ignored.')
-		elif message.content.lower().split(' ')[0] == '.api':
+		elif mcl.split(' ')[0] == '.api':
 			await channel.send('`'+pf('i')+discord.__version__+'`')
-		elif message.content.lower().split(' ')[0] == '.id':
+		elif mcl.split(' ')[0] == '.id':
 			await channel.send('`'+pf('i')+str(message.channel.id)+'`')
-		elif message.content.lower().split(' ')[0] == '.reload':
-			load()
-			await channel.send('`'+pf('i')+'Data successfully reloaded.'+'`')
-		elif message.content.lower().split(' ')[0] == '.tweet':
+		elif mcl.split(' ')[0] == '.tweet':
 			print(pf('Tweet')+t.tweet(message.content[7:]))
 			await channel.send('`'+pf('Tweet')+'Twitter status update called.'+'`')
-		elif message.content.lower().split(' ')[0] == '.whitelist':
-			if message.content.lower().split(' ')[1] == 'on':
-				whitelist = True
-				await channel.send('`'+pf('i')+'Whitelist successfully enabled.'+'`')
-			elif message.content.lower().split(' ')[1] == 'off':
-				whitelist = False
-				await channel.send('`'+pf('i')+'Whitelist successfully disabled.'+'`')
-			else:
-				await channel.send('`'+pf('i')+'auth = '+str(auth)+'`')
+		elif mcl.split(' ')[0] == '.auth':
+			try:
+				set_auth(int(message.content.split(' ')[1]), int(message.content.split(' ')[2]))
+			except:
+				await channel.send('`'+pf('e')+'Level and UserID must be integers.'+'`')
 		else:
 			await channel.send('`'+pf('e')+'Invalid command.'+'`')
 
-	elif message.content.lower() == 'hello!':
+	elif mcl == 'hello!':
 		await channel.send('Hi there!')
+	elif mcl == 'id':
+		await channel.send('Here\'s your User-ID: '+str(message.author.id))
 
 	else:
 		await channel.send(process(message))
@@ -283,18 +295,5 @@ async def on_ready():
 	print(pf('DONE')+'Taki ready!\n')
 
 print(pf('(o/)')+'Taki starting up!')
-
-admins = []
-auth = []
-whitelist = True
-load()
 print(pf('i')+'Logging into discord...')
 client.run(discord_token)
-
-
-# NOTE FROM AUTHOR - 02/02/2020
-# Alongside millions of public GitHub repositories, this rather insignificant software is going to be archived inside the arctic code vault in Svalbard.
-# This message will likely remain readable for hundreds, if not thousands of years.
-# I'd like to use this opportunity to thank the few people supporting me through my daily life, you're seriously the best! ALT+3
-# Once this message gets decoded again - if at all - everything I am currently worried about will have no significance anymore whatsoever.
-# I wish you the best of luck.

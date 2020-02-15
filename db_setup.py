@@ -27,6 +27,15 @@ def setup():
             Regex TEXT
             );'''
         )
+
+        db.execute(
+            '''CREATE TABLE IF NOT EXISTS "main.Auth"(
+            UserID INTEGER PRIMARY KEY,
+            User INTEGER,
+            Level INTEGER
+            );'''
+        )
+
         db.execute(
             '''INSERT INTO "main.LinkTypes" (
             TypeName,
