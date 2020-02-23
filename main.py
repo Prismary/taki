@@ -2,6 +2,7 @@ import discord
 import asyncio
 import random
 import datetime
+import time
 import os
 import time
 import sqlite3
@@ -78,6 +79,17 @@ def set_auth(user_id, set_level):
 			(user_id, set_level)
 		)
 	conn.commit()
+
+def auth_setup(user_id):
+	cursor.execute(
+		'''SELECT * FROM "main.Auth"'''
+	)
+	rows = cursor.fetchone()
+	if rows == None:
+		set_auth(user_id, 3)
+		return 'You have been registered as an administrator.'
+	else:
+		return 'The authorization has already been set up.'
 
 def process(msg):
 	if msg.content == '?':
@@ -223,6 +235,32 @@ def process(msg):
 		else:
 			return 'No suitable songs have been found in the database.'
 
+	elif msg.content.lower().startswith('view;'):
+		try:
+			id = int(msg.content.split(';')[1])
+		except:
+			return 'The message format is invalid. Type \'?\' for help.'
+
+		cursor.execute(
+			'''SELECT * FROM "main.Songs"
+			WHERE SongID = ?;''', (id,)
+		)
+		song = cursor.fetchone()
+
+		try:
+		    posted = 'Yes, on '+time.ctime(int(song[3]))
+		except:
+		    posted = 'No'
+
+		cursor.execute(
+			'''SELECT l.Link,lt.TypeName FROM "main.Links" AS l
+            JOIN "main.LinkTypes" AS lt ON l.LinkTypeID = lt.LinkTypeID
+			WHERE SongID = ? AND TypeName = "YouTube";''', (song[0],)
+		)
+		link = cursor.fetchone()[0]
+
+		return '`[{}]` **{} - {}**\n*submitted by <@{}>\non {}*\n\nPosted: {}\nLink: {}'.format(str(song[0]), song[1], song[2], song[4], time.ctime(int(song[5])), posted, link)
+
 	elif msg.content.lower().startswith('delete;'):
 		if not auth(msg.author.id, 2):
 			return 'Sorry, your authorization level is insufficient for this command.'
@@ -276,7 +314,7 @@ async def on_message(message):
 	if message.author == client.user:
 		return
 	global whitelist
-	if whitelist == True and not auth(message.author.id, 1):
+	if whitelist == True and not auth(message.author.id, 1) and mcl != 'setup':
 		await send(channel, 'Sorry, I may only talk to authorized users.')
 		return
 
@@ -311,8 +349,8 @@ async def on_message(message):
 		else:
 			await send(channel, 'Sorry, your authorization level is insufficient for this command.')
 
-	elif mcl == 'hello!':
-		await send(channel, 'Hi there!')
+	elif mcl == 'setup':
+		await send(channel, auth_setup(message.author.id))
 	elif mcl == 'id':
 		await send(channel, 'Here\'s your User-ID: '+str(message.author.id))
 
