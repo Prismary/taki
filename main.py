@@ -210,8 +210,12 @@ def process(msg):
 			return 'Sorry, your authorization level is insufficient for this command.'
 
 		if msg.content.lower().split(';')[1] == 'all':
+			try:
+				minid = msg.content.split(';')[2]
+			except:
+				minid = 0
 			cursor.execute(
-				'''SELECT * FROM "main.Songs";'''
+				'''SELECT * FROM "main.Songs" WHERE SongID >= ?;''', (minid,)
 				)
 		else:
 			try:
@@ -219,6 +223,10 @@ def process(msg):
 				searchfor = msg.content.split(';')[2]
 			except:
 				return 'The message format is invalid. Type \'?\' for help.'
+			try:
+				minid = msg.content.split(';')[3]
+			except:
+				minid = 0
 
 			if searchby.lower() == 'id':
 				searchby = 'SongID'
@@ -231,7 +239,7 @@ def process(msg):
 
 			cursor.execute(
 				'''SELECT * FROM "main.Songs"
-				WHERE {} = ? COLLATE NOCASE;'''.format(searchby), (searchfor,)
+				WHERE {} = ? COLLATE NOCASE AND SongID >= ?;'''.format(searchby), (searchfor, minid)
 			)
 
 		rows = cursor.fetchall()
