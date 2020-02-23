@@ -45,6 +45,17 @@ async def send(channel, msg, type='default'):
 		msg = '`'+pf('Tweet')+msg+'`'
 	await channel.send(msg)
 
+def check_reg(user_id):
+	cursor.execute(
+		'''SELECT Level FROM "main.Auth"
+		WHERE User = ?;''', (user_id,)
+	)
+	try:
+		level = int(cursor.fetchone()[0])
+		return True
+	except:
+		return False
+
 def auth(user_id, level_required):
 	cursor.execute(
 		'''SELECT Level FROM "main.Auth"
@@ -96,8 +107,6 @@ def process(msg):
 		return '__**Command-Usage**__\n```Markdown\n# Add a song to the recommendation pool:\n\nadd;<artist>;<title>;<link>\n\n\n# Post a recommendation to Twitter:\n\nrec;[random/;<artist>;<title>]\n\n\n# List songs by given criteria\n\nlist;[all/id;<id>/artist;<artist>/title;<title>]\n```'
 
 	elif msg.content.lower().startswith('add;'):
-		if not auth(msg.author.id, 1):
-			return 'Sorry, your authorization level is insufficient for this command.'
 
 		try:
 			r_artist = msg.content.split(';')[1]
@@ -123,11 +132,19 @@ def process(msg):
 		cursor.execute("""SELECT LinkTypeID FROM "main.LinkTypes" WHERE ? REGEXP Regex;""", (r_link,))
 		linktypeid = cursor.fetchone()[0]
 
-		cursor.execute(
-			'''INSERT INTO "main.Songs" (Artist, Title, User, Timestamp)
-			VALUES (?, ?, ?, ?);''',
-			(r_artist, r_title, msg.author.id, time.time())
-		)
+		if auth(msg.author.id, 1):
+			cursor.execute(
+				'''INSERT INTO "main.Songs" (Artist, Title, User, Timestamp, Confirmed)
+				VALUES (?, ?, ?, ?, ?);''',
+				(r_artist, r_title, msg.author.id, time.time(), time.time())
+			)
+		else:
+			cursor.execute(
+				'''INSERT INTO "main.Songs" (Artist, Title, User, Timestamp)
+				VALUES (?, ?, ?, ?);''',
+				(r_artist, r_title, msg.author.id, time.time())
+			)
+
 		cursor.execute(
 			'''INSERT INTO "main.Links" (Link, LinkTypeID, SongID)
 			VALUES (?, ?, last_insert_rowid());''',
@@ -144,7 +161,7 @@ def process(msg):
 		if msg.content.lower().split(';')[1] == 'random':
 			cursor.execute(
 				'''SELECT * FROM "main.Songs"
-				WHERE SongID IN (SELECT SongID FROM "main.Songs" WHERE Posted IS NULL ORDER BY RANDOM() LIMIT 1);'''
+				WHERE SongID IN (SELECT SongID FROM "main.Songs" WHERE Posted IS NULL AND Confirmed IS NOT NULL ORDER BY RANDOM() LIMIT 1);'''
 			)
 
 		else:
@@ -189,7 +206,7 @@ def process(msg):
 		return 'Successfully posted **'+r_artist+' - '+r_title+'** to Twitter.'
 
 	elif msg.content.lower().startswith('list;'):
-		if not auth(msg.author.id, 1):
+		if not auth(msg.author.id, 0):
 			return 'Sorry, your authorization level is insufficient for this command.'
 
 		if msg.content.lower().split(';')[1] == 'all':
@@ -224,7 +241,10 @@ def process(msg):
 			slist = 'These songs match your criteria:\n\n'
 			for item in rows:
 				if len(slist+'`['+str(item[0])+']` '+str(item[1])+' - '+str(item[2])+'\n') <= 1980:
-					slist = slist+'`['+str(item[0])+']` '+str(item[1])+' - '+str(item[2])+'\n'
+					if item[6] != None:
+						slist = slist+'`['+str(item[0])+']` '+str(item[1])+' - '+str(item[2])+'\n'
+					else:
+						slist = slist+'`['+str(item[0])+']` *'+str(item[1])+' - '+str(item[2])+'*\n'
 				else:
 					overflow += 1
 
@@ -246,11 +266,18 @@ def process(msg):
 			WHERE SongID = ?;''', (id,)
 		)
 		song = cursor.fetchone()
+		if song == None:
+			return 'The Song-ID `['+str(id)+']` does not exist.'
 
 		try:
 		    posted = 'Yes, on '+time.ctime(int(song[3]))
 		except:
 		    posted = 'No'
+
+		try:
+		    confirmed = 'Yes, on '+time.ctime(int(song[6]))
+		except:
+		    confirmed = 'No'
 
 		cursor.execute(
 			'''SELECT l.Link,lt.TypeName FROM "main.Links" AS l
@@ -259,7 +286,32 @@ def process(msg):
 		)
 		link = cursor.fetchone()[0]
 
-		return '`[{}]` **{} - {}**\n*submitted by <@{}>\non {}*\n\nPosted: {}\nLink: {}'.format(str(song[0]), song[1], song[2], song[4], time.ctime(int(song[5])), posted, link)
+		return '`[{}]` **{} - {}**\n*submitted by <@{}>\non {}*\n\nConfirmed: {}\nPosted: {}\nLink: {}'.format(str(song[0]), song[1], song[2], song[4], time.ctime(int(song[5])), confirmed, posted, link)
+
+	elif msg.content.lower().startswith('confirm;'):
+		if not auth(msg.author.id, 2):
+			return 'Sorry, your authorization level is insufficient for this command.'
+
+		try:
+			id = int(msg.content.split(';')[1])
+		except:
+			return 'The message format is invalid. Type \'?\' for help.'
+
+		cursor.execute(
+			'''SELECT * FROM "main.Songs"
+			WHERE SongID = ?;''', (id,)
+		)
+		song = cursor.fetchone()
+		if song == None:
+			return 'The Song-ID `['+str(id)+']` does not exist.'
+
+		cursor.execute(
+			'''UPDATE "main.Songs"
+			SET Confirmed = ?
+			WHERE SongID = ?;''', (time.time(), id)
+		)
+		conn.commit()
+		return 'Successfully confirmed `[{}]` *{} - {}*'.format(song[0], song[1], song[2])
 
 	elif msg.content.lower().startswith('delete;'):
 		if not auth(msg.author.id, 2):
@@ -314,11 +366,17 @@ async def on_message(message):
 	if message.author == client.user:
 		return
 	global whitelist
-	if whitelist == True and not auth(message.author.id, 1) and mcl != 'setup':
+
+	if mcl == 'setup':
+		await send(channel, auth_setup(message.author.id))
+	elif mcl == 'id':
+		await send(channel, 'Here\'s your User-ID: '+str(message.author.id))
+
+	elif whitelist == True and not check_reg(message.author.id) and mcl != 'setup' :
 		await send(channel, 'Sorry, I may only talk to authorized users.')
 		return
 
-	if mcl.startswith('.'):
+	elif mcl.startswith('.'):
 		if auth(message.author.id, 3):
 			cmd = mcl.split(' ')[0]
 
@@ -344,15 +402,10 @@ async def on_message(message):
 					await send(channel, 'Permission level successfully updated.', 'cmd_i')
 				except:
 					await send(channel, 'Level and UserID must be integers.', 'cmd_e')
-				else:
-					await send(channel, 'Invalid command.', 'cmd_e')
+			else:
+				await send(channel, 'Invalid command.', 'cmd_e')
 		else:
 			await send(channel, 'Sorry, your authorization level is insufficient for this command.')
-
-	elif mcl == 'setup':
-		await send(channel, auth_setup(message.author.id))
-	elif mcl == 'id':
-		await send(channel, 'Here\'s your User-ID: '+str(message.author.id))
 
 	else:
 		await send(channel, process(message))

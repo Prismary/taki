@@ -9,7 +9,8 @@ def setup():
             Title TEXT,
             Posted REAL DEFAULT NULL,
             User INTEGER,
-            Timestamp INTEGER
+            Timestamp INTEGER,
+            Confirmed REAL DEFAULT NULL
             );'''
         )
         db.execute(

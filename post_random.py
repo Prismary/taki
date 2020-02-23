@@ -8,7 +8,7 @@ cursor = conn.cursor()
 
 cursor.execute(
     '''SELECT * FROM "main.Songs"
-    WHERE SongID IN (SELECT SongID FROM "main.Songs" WHERE Posted IS NULL ORDER BY RANDOM() LIMIT 1);'''
+    WHERE SongID IN (SELECT SongID FROM "main.Songs" WHERE Posted IS NULL AND Confirmed IS NOT NULL ORDER BY RANDOM() LIMIT 1);'''
 )
 
 rows = cursor.fetchone()
