@@ -360,6 +360,10 @@ def process(msg):
 		            '''DELETE FROM "main.Songs"
 					WHERE SongID = ?;''', (id,)
 		        )
+				cursor.execute(
+		            '''DELETE FROM "main.Links"
+					WHERE SongID = ?;''', (id,)
+		        )
 				conn.commit()
 				return 'You have successfully deleted `[{}]` **{} - {}** from the database.'.format(rows[0], rows[1], rows[2])
 		else:
