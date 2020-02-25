@@ -125,7 +125,7 @@ def process(msg):
 			r_songid = rows[0]
 			r_artist = rows[1]
 			r_title = rows[2]
-			return 'The specified song already exists: **'+str(r_artist)+' - '+str(r_title)+'** (ID: '+str(r_songid)+')'
+			return 'The specified song already exists: `[{}]` **{} - {}**'.format(r_songid, r_artist, r_title)
 		except:
 			pass
 
@@ -151,8 +151,13 @@ def process(msg):
 			(r_link, linktypeid)
 		)
 		conn.commit()
+		cursor.execute(
+            '''SELECT * FROM "main.Songs"
+            WHERE Artist = ? AND Title = ?;''', (r_artist, r_title)
+		)
+		id = cursor.fetchone()[0]
 
-		return 'Successfully added **'+r_artist+' - '+r_title+'** to the recommendation pool.'
+		return 'Successfully added `[{}]` **{} - {}** to the database.'.format(id, r_artist, r_title)
 
 	elif msg.content.lower().startswith('rec;'):
 		if not auth(msg.author.id, 2):
@@ -342,12 +347,12 @@ def process(msg):
 			WHERE SongID = ?;''', (id,)
 		)
 
-		rows = cursor.fetchall()
+		rows = cursor.fetchone()
 
 		if rows != []:
 			if confirmed == False:
 				delmsg = '**You are about to delete:**\n\n'
-				delmsg = delmsg+'`['+str(rows[0][0])+']` '+str(rows[0][1])+' - '+str(rows[0][2])+'\n'
+				delmsg = delmsg+'`[{}]` {} - {}\n'.format(rows[0], rows[1], rows[2])
 				delmsg = delmsg+'\nAre you *absolutely sure* you want to delete this song?\nConfirm by typing `delete;'+str(id)+';confirm`'
 				return delmsg
 			else:
@@ -356,7 +361,7 @@ def process(msg):
 					WHERE SongID = ?;''', (id,)
 		        )
 				conn.commit()
-				return 'You have successfully deleted **'+str(rows[0][1])+' - '+str(rows[0][2])+'** from the database.'
+				return 'You have successfully deleted `[{}]` **{} - {}** from the database.'.format(rows[0], rows[1], rows[2])
 		else:
 			return 'Unable to find ID `'+str(id)+'` in the database.'
 
@@ -424,5 +429,5 @@ async def on_ready():
 	print(pf('DONE')+'Taki ready!\n')
 
 print(pf('^-^/')+'Taki starting up!')
-print(pf('i')+'Logging into discord...')
+print(pf('i')+'Logging into Discord...')
 client.run(discord_token)
