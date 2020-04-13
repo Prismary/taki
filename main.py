@@ -15,7 +15,7 @@ conn.create_function('REGEXP', 2, lambda x, y: 1 if re.search(x,y) else 0)
 cursor = conn.cursor()
 
 with open('config.yml', 'r') as cfgfile:
-    config = yaml.load(cfgfile, Loader=yaml.FullLoader)
+	config = yaml.load(cfgfile, Loader=yaml.FullLoader)
 whitelist = config['settings']['whitelist']
 discord_token = config['tokens']['discord']['discord_token']
 
@@ -152,8 +152,8 @@ def process(msg):
 		)
 		conn.commit()
 		cursor.execute(
-            '''SELECT * FROM "main.Songs"
-            WHERE Artist = ? AND Title = ?;''', (r_artist, r_title)
+			'''SELECT * FROM "main.Songs"
+			WHERE Artist = ? AND Title = ?;''', (r_artist, r_title)
 		)
 		id = cursor.fetchone()[0]
 
@@ -192,20 +192,20 @@ def process(msg):
 			return 'No suitable songs have been found in the database.'
 
 		cursor.execute('''
-            SELECT l.Link,lt.TypeName FROM "main.Links" AS l
-            JOIN "main.LinkTypes" AS lt ON l.LinkTypeID = lt.LinkTypeID
-            WHERE SongID = ? AND TypeName = "YouTube";''', (r_songid,)
-        )
+			SELECT l.Link,lt.TypeName FROM "main.Links" AS l
+			JOIN "main.LinkTypes" AS lt ON l.LinkTypeID = lt.LinkTypeID
+			WHERE SongID = ? AND TypeName = "YouTube";''', (r_songid,)
+		)
 		r_links = cursor.fetchone()
 		r_link = r_links[0]
 
 		print(pf('Tweet')+t.tweet(''+r_artist+' - '+r_title+'\n\n'+r_link))
 
 		cursor.execute(
-            '''UPDATE "main.Songs"
+			'''UPDATE "main.Songs"
 			SET Posted = ?
 			WHERE SongID = ?;''', (time.time(), r_songid)
-        )
+		)
 		conn.commit()
 
 		return 'Successfully posted **'+r_artist+' - '+r_title+'** to Twitter.'
@@ -255,7 +255,10 @@ def process(msg):
 			for item in rows:
 				if len(slist+'`['+str(item[0])+']` '+str(item[1])+' - '+str(item[2])+'\n') <= 1980:
 					if item[6] != None:
-						slist = slist+'`['+str(item[0])+']` '+str(item[1])+' - '+str(item[2])+'\n'
+						if item[3] == None:
+							slist = slist+'`['+str(item[0])+']` '+str(item[1])+' - '+str(item[2])+'\n'
+						else:
+							slist = slist+'`['+str(item[0])+']` **'+str(item[1])+' - '+str(item[2])+'**\n'
 					else:
 						slist = slist+'`['+str(item[0])+']` *'+str(item[1])+' - '+str(item[2])+'*\n'
 				else:
@@ -283,18 +286,18 @@ def process(msg):
 			return 'The Song-ID `['+str(id)+']` does not exist.'
 
 		try:
-		    posted = 'Yes, on '+time.ctime(int(song[3]))
+			posted = 'Yes, on '+time.ctime(int(song[3]))
 		except:
-		    posted = 'No'
+			posted = 'No'
 
 		try:
-		    confirmed = 'Yes, on '+time.ctime(int(song[6]))
+			confirmed = 'Yes, on '+time.ctime(int(song[6]))
 		except:
-		    confirmed = 'No'
+			confirmed = 'No'
 
 		cursor.execute(
 			'''SELECT l.Link,lt.TypeName FROM "main.Links" AS l
-            JOIN "main.LinkTypes" AS lt ON l.LinkTypeID = lt.LinkTypeID
+			JOIN "main.LinkTypes" AS lt ON l.LinkTypeID = lt.LinkTypeID
 			WHERE SongID = ? AND TypeName = "YouTube";''', (song[0],)
 		)
 		link = cursor.fetchone()[0]
@@ -357,13 +360,13 @@ def process(msg):
 				return delmsg
 			else:
 				cursor.execute(
-		            '''DELETE FROM "main.Songs"
+					'''DELETE FROM "main.Songs"
 					WHERE SongID = ?;''', (id,)
-		        )
+				)
 				cursor.execute(
-		            '''DELETE FROM "main.Links"
+					'''DELETE FROM "main.Links"
 					WHERE SongID = ?;''', (id,)
-		        )
+				)
 				conn.commit()
 				return 'You have successfully deleted `[{}]` **{} - {}** from the database.'.format(rows[0], rows[1], rows[2])
 		else:
